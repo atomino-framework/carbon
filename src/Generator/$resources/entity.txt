@@ -1,0 +1,9 @@
+<?php namespace {{entity-namespace}};
+
+use Atomino\Carbon\Attributes\Modelify;
+use {{shadow-namespace}}\_{{name}};
+
+#[Modelify(\Application\Database\DefaultConnection::class, '{{table}}', true)]
+class {{name}} extends _{{name}}{
+
+}

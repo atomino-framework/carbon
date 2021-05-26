@@ -1,0 +1,27 @@
+<?php namespace {{shadow-namespace}};
+
+use Atomino\Carbon\Database\Finder\Filter;
+use Atomino\Carbon\Attributes\Field;
+use Atomino\Carbon\Attributes\Immutable;
+use Atomino\Carbon\Attributes\Protect;
+use Atomino\Carbon\Attributes\Validator;
+use Atomino\Carbon\Entity;
+use Atomino\Carbon\Model;
+use Atomino\Carbon\Attributes\RequiredField;
+
+
+/**
+ * @method static \Atomino\Atoms\EntityFinder\_{{name}} search( Filter $filter = null )
+#:annotation
+ */
+#[RequiredField('id', \Atomino\Carbon\Field\IntField::class)]
+#:attribute
+abstract class _{{name}} extends Entity {{interface}}{
+	static null|Model $model = null;
+#:code
+}
+
+
+
+
+
