@@ -1,21 +1,21 @@
 <?php namespace Atomino\Carbon\Generator;
 
-use Atomino\Cli\Style;
-use Atomino\Core\Application;
-use Atomino\Carbon\Database\Descriptor;
 use Atomino\Carbon\Attributes\BelongsTo;
 use Atomino\Carbon\Attributes\BelongsToMany;
 use Atomino\Carbon\Attributes\HasMany;
 use Atomino\Carbon\Attributes\RequiredField;
 use Atomino\Carbon\Attributes\Virtual;
+use Atomino\Carbon\Database\Descriptor;
 use Atomino\Carbon\Field\Attributes\FieldDescriptor;
 use Atomino\Carbon\Model;
 use Atomino\Carbon\Plugin\Plugin;
+use Atomino\Cli\Style;
 use Atomino\Neutrons\CodeFinder;
 use CaseHelper\CamelCaseHelper;
 use CaseHelper\SnakeCaseHelper;
 use Composer\Autoload\ClassLoader;
 use Riimu\Kit\PHPEncoder\PHPEncoder;
+use function Atomino\dic;
 use function Atomino\path;
 
 class Generator {
@@ -30,7 +30,7 @@ class Generator {
 	private string $finderPath;
 
 	public function __construct(private string $namespace, private Style $style) {
-		$this->codeFinder = new CodeFinder(Application::DIC()->get(ClassLoader::class));
+		$this->codeFinder = new CodeFinder(dic()->get(ClassLoader::class));
 		$this->encoder = new PHPEncoder();
 		$this->entityPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace($this->namespace)), strlen(path()));
 		$this->shadowPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace(static::ATOM_SHADOW_ENTITY_NS)), strlen(path()));
