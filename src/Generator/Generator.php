@@ -9,7 +9,7 @@ use Atomino\Carbon\Database\Descriptor;
 use Atomino\Carbon\Field\Attributes\FieldDescriptor;
 use Atomino\Carbon\Model;
 use Atomino\Carbon\Plugin\Plugin;
-use Atomino\Cli\Style;
+use Atomino\Core\Cli\Style;
 use Atomino\Neutrons\CodeFinder;
 use CaseHelper\CamelCaseHelper;
 use CaseHelper\SnakeCaseHelper;
@@ -79,6 +79,8 @@ class Generator {
 
 	public function generate() {
 
+		$errors = [];
+
 		$style = $this->style;
 
 		$modified = false;
@@ -97,14 +99,19 @@ class Generator {
 			$table = $model->getConnection()->getDescriptor()->getTable($model->getTable());
 
 			if (is_null($table)) {
+				$errors[] = [ $class, $model->getTable().' table does not exists!'];
 				$style->_task_error('Table does not exists!');
 				continue;
 			}
 
-			if ($table->isView() && $model->isMutable()) $style->_task_warn('Storage is a VIEW. Entity should be immutable!', false);
+			if ($table->isView() && $model->isMutable()){
+				$style->_task_warn('Storage is a VIEW. Entity should be immutable!', false);
+				$errors[] = [$class, $model->getTable().' Storage is a VIEW. Entity should be immutable!'];
+
+			}
 			else $style->_task_ok();
 
-			$fields = $this->fetchFields($model, $table);
+			$fields = $this->fetchFields($model, $table, $errors);
 
 			$translate = [
 				"{{name}}"             => $class,
@@ -244,8 +251,10 @@ class Generator {
 				$style->_task('Required field: ' . $Required->field);
 				if (!array_key_exists($Required->field, $fields)) {
 					$style->_task_error('missing');
+					$errors[] = [$class, 'Required field missing: ' . $Required->field];
 				} elseif ($fields[$Required->field]['entityFieldType'] !== $Required->type) {
 					$style->_task_error('type mismatch (' . $Required->type . ')');
+					$errors[] = [$class, 'Required type mismatch (' . $Required->type . '): ' . $Required->field];
 				} else {
 					$style->_task_ok();
 				}
@@ -304,13 +313,25 @@ class Generator {
 				$style->_task_ok();
 			}
 		}
+
+		if(count($errors)){
+			$style->_section("Errors");
+
+			foreach ($errors as $error){
+				$style->_task($error[0]);
+				$style->_task_error($error[1]);
+			}
+		}
+
 		if ($modified) {
 			$style->newLine();
 			$style->_warn('Rerun generator!');
+			return 1;
 		}
+		return 0;
 	}
 
-	private function fetchFields(Model $model, Descriptor\Table $table): array {
+	private function fetchFields(Model $model, Descriptor\Table $table, &$errors): array {
 		$style = $this->style;
 
 		$fields = [];
@@ -338,6 +359,7 @@ class Generator {
 
 			if (is_null($entityFieldType)) {
 				$style->_task_error('unsupported type: ' . $dbField->getTypeString());
+				$errors[] = [$table->getName(), 'Unsupported type: ' . $dbField->getTypeString()];
 			} else {
 				$_fieldDescriptor = FieldDescriptor::get(new \ReflectionClass($entityFieldType));
 

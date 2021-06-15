@@ -1,10 +1,10 @@
 <?php namespace Atomino\Carbon\Database\Cli;
 
-use Atomino\Cli\Attributes\Command;
-use Atomino\Cli\CliCommand;
-use Atomino\Cli\CliModule;
-use Atomino\Cli\Exceptions\Error;
-use Atomino\Cli\Style;
+use Atomino\Core\Cli\Attributes\Command;
+use Atomino\Core\Cli\CliCommand;
+use Atomino\Core\Cli\CliModule;
+use Atomino\Core\Cli\Exceptions\Error;
+use Atomino\Core\Cli\Style;
 use Atomino\Carbon\Database\Migrator\Exception;
 use Symfony\Component\Console\Input\InputArgument;
 
@@ -71,7 +71,7 @@ class Migrator extends CliModule{
 			->addArgument('version', InputArgument::OPTIONAL, 'version of the migration to work with', 'current');
 	}
 
-	#[Command( name: 'mig:status' )]
+	#[Command( name: 'mig:status', description: "Shows migration status" )]
 	public function status(): CliCommand{
 		return ( new class extends CliCommand{
 			protected function exec(mixed $config){

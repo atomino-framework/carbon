@@ -1,23 +1,34 @@
 <?php namespace Atomino\Carbon\Cli;
 
-use Atomino\Cli\Attributes\Command;
-use Atomino\Cli\CliCommand;
-use Atomino\Cli\CliModule;
+use Atomino\Core\Cli\Attributes\Command;
+use Atomino\Core\Cli\CliCommand;
+use Atomino\Core\Cli\CliModule;
 use Atomino\Carbon\Generator\Generator;
 use Symfony\Component\Console\Input\InputArgument;
 
 class Entity extends CliModule{
 
-	#[Command('entity')]
+	#[Command('entity:generate', "entity", "Regenerates all entities")]
 	public function entity():CliCommand{
-		return (new class() extends CliCommand{
+		return (new class extends CliCommand{
+			protected function exec(mixed $config){
+				$generator = new Generator($config['namespace'], $this->style);
+				$generator->generate();
+			}
+		});
+	}
+
+
+	#[Command('entity:create', description: "Create new entity")]
+	public function create():CliCommand{
+		return (new class extends CliCommand{
 			protected function exec(mixed $config){
 				$generator = new Generator($config['namespace'], $this->style);
 				$entity = $this->input->getArgument('entity');
-				if(is_null($entity)) $generator->generate();
-				else $generator->create($entity);
+				$generator->create($entity);
 			}
 		})
-			->addArgument('entity', InputArgument::OPTIONAL, '', null);
+			->addArgument('entity', InputArgument::REQUIRED, '', null);
 	}
+	
 }

@@ -1,6 +1,6 @@
 <?php namespace Atomino\Carbon\Database;
 
-use Atomino\Cli\Style;
+use Atomino\Core\Cli\Style;
 use Atomino\Carbon\Database\Finder\Filter;
 use Atomino\Carbon\Database\Migrator\Diff;
 use Atomino\Carbon\Database\Migrator\Exception;
