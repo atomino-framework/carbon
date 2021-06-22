@@ -23,14 +23,12 @@ class Generator {
 	const ATOM_SHADOW_ENTITY_NS = 'Atomino\Atoms\Entity';
 	const ATOM_ENTITY_FINDER_NS = 'Atomino\Atoms\EntityFinder';
 
-	private CodeFinder $codeFinder;
 	private PHPEncoder $encoder;
 	private string $entityPath;
 	private string $shadowPath;
 	private string $finderPath;
 
-	public function __construct(private string $namespace, private Style $style) {
-		$this->codeFinder = new CodeFinder(dic()->get(ClassLoader::class));
+	public function __construct(private string $namespace, private Style $style, private CodeFinder $codeFinder) {
 		$this->encoder = new PHPEncoder();
 		$this->entityPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace($this->namespace)), strlen(path()));
 		$this->shadowPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace(static::ATOM_SHADOW_ENTITY_NS)), strlen(path()));

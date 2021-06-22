@@ -15,9 +15,10 @@ use Atomino\Carbon\Attributes\Validator;
 use Atomino\Carbon\Attributes\Virtual;
 use Atomino\Carbon\Database\Connection;
 use Atomino\Carbon\Plugin\Plugin;
+use Atomino\Core\Application;
+use DI\Container;
 use JetBrains\PhpStorm\Pure;
 use Symfony\Contracts\Cache\CacheInterface;
-use function Atomino\dic;
 
 class Model {
 
@@ -40,11 +41,15 @@ class Model {
 	private array $plugins = [];
 	private \ReflectionClass $entityReflection;
 
+	private Container $container;
+
 	public function __construct(private string $entity) {
+
+		$this->container = Application::getContainer();
 
 		$this->entityReflection = $ENTITY = new \ReflectionClass($entity);
 
-		$this->cache = dic()->get(Cache::class);
+		$this->cache = $this->container->get(Cache::class);
 		$this->modelify($ENTITY);
 		$this->repository = new Repository($this);
 
@@ -60,9 +65,11 @@ class Model {
 		$this->setEventHandlers($ENTITY);
 	}
 
+	public function getContainer(): Container { return $this->container; }
+
 	private function modelify(\ReflectionClass $ENTITY) {
 		$Modelify = Modelify::get($ENTITY);
-		$this->connection = dic()->get($Modelify->connection);
+		$this->connection = $this->container->get($Modelify->connection);
 		$this->table = $Modelify->table;
 		$this->mutable = $Modelify->mutable;
 	}
