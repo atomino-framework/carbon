@@ -123,8 +123,12 @@ abstract class Entity implements \JsonSerializable, EntityInterface {
 		return $errors;
 	}
 
+	static public function create():static{
+		return static::model()->getContainer()->get(static::class);
+	}
+
 	static public function build(array $record, Entity|null $into = null): static{
-		$item = is_null($into) ? new static() : $into;
+		$item = is_null($into) ? static::create() : $into;
 		foreach ($record as $key => $value){
 			if (!is_null($field = static::model()->getField($key))){
 				$item->$key = $field->build($value);

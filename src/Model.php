@@ -36,20 +36,19 @@ class Model {
 	private array $fields = [];
 	/** @var Relation[] */
 	private array $relations = [];
-//	private array $pluginData = [];
 	/** @var \Atomino\Carbon\Plugin\Plugin[][] */
 	private array $plugins = [];
 	private \ReflectionClass $entityReflection;
 
-	private Container $container;
+	private static null|Container $container = null;
 
 	public function __construct(private string $entity) {
 
-		$this->container = Application::getContainer();
+		if(is_null(static::$container)) throw new \Exception("Carbon model container is empty!");
 
 		$this->entityReflection = $ENTITY = new \ReflectionClass($entity);
 
-		$this->cache = $this->container->get(Cache::class);
+		$this->cache = static::$container->get(Cache::class);
 		$this->modelify($ENTITY);
 		$this->repository = new Repository($this);
 
@@ -65,11 +64,12 @@ class Model {
 		$this->setEventHandlers($ENTITY);
 	}
 
-	public function getContainer(): Container { return $this->container; }
+	public function getContainer(): Container { return static::$container; }
+	public static function setContainer(Container $container){static::$container = $container;}
 
 	private function modelify(\ReflectionClass $ENTITY) {
 		$Modelify = Modelify::get($ENTITY);
-		$this->connection = $this->container->get($Modelify->connection);
+		$this->connection = static::$container->get($Modelify->connection);
 		$this->table = $Modelify->table;
 		$this->mutable = $Modelify->mutable;
 	}
