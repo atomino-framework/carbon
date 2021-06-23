@@ -10,13 +10,11 @@ use Atomino\Carbon\Field\Attributes\FieldDescriptor;
 use Atomino\Carbon\Model;
 use Atomino\Carbon\Plugin\Plugin;
 use Atomino\Core\Cli\Style;
+use Atomino\Core\PathResolverInterface;
 use Atomino\Neutrons\CodeFinder;
 use CaseHelper\CamelCaseHelper;
 use CaseHelper\SnakeCaseHelper;
-use Composer\Autoload\ClassLoader;
 use Riimu\Kit\PHPEncoder\PHPEncoder;
-use function Atomino\dic;
-use function Atomino\path;
 
 class Generator {
 
@@ -28,11 +26,11 @@ class Generator {
 	private string $shadowPath;
 	private string $finderPath;
 
-	public function __construct(private string $namespace, private Style $style, private CodeFinder $codeFinder) {
+	public function __construct(private string $namespace, private Style $style, private CodeFinder $codeFinder, private PathResolverInterface $pathResolver) {
 		$this->encoder = new PHPEncoder();
-		$this->entityPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace($this->namespace)), strlen(path()));
-		$this->shadowPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace(static::ATOM_SHADOW_ENTITY_NS)), strlen(path()));
-		$this->finderPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace(static::ATOM_ENTITY_FINDER_NS)), strlen(path()));
+		$this->entityPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace($this->namespace)), strlen($this->pathResolver->path()));
+		$this->shadowPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace(static::ATOM_SHADOW_ENTITY_NS)), strlen($this->pathResolver->path()));
+		$this->finderPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace(static::ATOM_ENTITY_FINDER_NS)), strlen($this->pathResolver->path()));
 	}
 
 	public function create(string $name) {
@@ -62,7 +60,7 @@ class Generator {
 		foreach ($files as $templateFile => $file) {
 
 			$this->style->_task($file);
-			$file = path($file);
+			$file = $this->pathResolver->path($file);
 
 			if (file_exists($file)) {
 				$this->style->_task_warn('already exists');
@@ -97,17 +95,16 @@ class Generator {
 			$table = $model->getConnection()->getDescriptor()->getTable($model->getTable());
 
 			if (is_null($table)) {
-				$errors[] = [ $class, $model->getTable().' table does not exists!'];
+				$errors[] = [$class, $model->getTable() . ' table does not exists!'];
 				$style->_task_error('Table does not exists!');
 				continue;
 			}
 
-			if ($table->isView() && $model->isMutable()){
+			if ($table->isView() && $model->isMutable()) {
 				$style->_task_warn('Storage is a VIEW. Entity should be immutable!', false);
-				$errors[] = [$class, $model->getTable().' Storage is a VIEW. Entity should be immutable!'];
+				$errors[] = [$class, $model->getTable() . ' Storage is a VIEW. Entity should be immutable!'];
 
-			}
-			else $style->_task_ok();
+			} else $style->_task_ok();
 
 			$fields = $this->fetchFields($model, $table, $errors);
 
@@ -298,7 +295,7 @@ class Generator {
 			$style->_task("{$this->shadowPath}/_{$class}.php");
 			$template = file_get_contents(__DIR__ . '/$resources/shadow.txt');
 			$template = strtr($template, $translate);
-			$outfile = path("{$this->shadowPath}/_{$class}.php");
+			$outfile = $this->pathResolver->path("{$this->shadowPath}/_{$class}.php");
 
 			if (!file_exists($outfile)) {
 				file_put_contents($outfile, $template);
@@ -312,10 +309,10 @@ class Generator {
 			}
 		}
 
-		if(count($errors)){
+		if (count($errors)) {
 			$style->_section("Errors");
 
-			foreach ($errors as $error){
+			foreach ($errors as $error) {
 				$style->_task($error[0]);
 				$style->_task_error($error[1]);
 			}

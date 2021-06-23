@@ -15,7 +15,6 @@ use Atomino\Carbon\Attributes\Validator;
 use Atomino\Carbon\Attributes\Virtual;
 use Atomino\Carbon\Database\Connection;
 use Atomino\Carbon\Plugin\Plugin;
-use Atomino\Core\Application;
 use DI\Container;
 use JetBrains\PhpStorm\Pure;
 use Symfony\Contracts\Cache\CacheInterface;
