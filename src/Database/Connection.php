@@ -1,14 +1,15 @@
 <?php namespace Atomino\Carbon\Database;
 
 use JetBrains\PhpStorm\Pure;
+use Monolog\Logger;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use function Atomino\debug;
 
 class Connection {
 
-	const DEBUG_SQL = 'DEBUG_'.__CLASS__.'_SQL';
-	const DEBUG_SQL_ERROR = 'DEBUG_SQL_ERROR';
+	const DEBUG_CHANNEL_SQL = 'SQL';
+	const DEBUG_CHANNEL_SQL_ERROR = 'SQL_ERROR';
 
 	private \PDO $pdo;
 	private ?Smart $smart = null;
@@ -22,10 +23,10 @@ class Connection {
 
 		try {
 			$result = $this->pdo->query($query);
-			debug($query, static::DEBUG_SQL);
+			debug($query, static::DEBUG_CHANNEL_SQL, Logger::DEBUG);
 			return $result;
 		} catch (\Exception $exception) {
-			debug(['sql' => $query, 'error' => $exception->getMessage()], static::DEBUG_SQL_ERROR);
+			debug(['sql' => $query, 'error' => $exception->getMessage()], static::DEBUG_CHANNEL_SQL_ERROR, Logger::ERROR);
 			$this->logger->error($exception->getMessage(), [$query]);
 			throw $exception;
 		}
