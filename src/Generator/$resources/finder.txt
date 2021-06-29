@@ -1,4 +1,4 @@
-<?php namespace Atomino\Atoms\EntityFinder;
+<?php namespace {{finder-namespace}};
  use Atomino\Carbon\Finder;
 
  /**

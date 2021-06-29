@@ -124,7 +124,7 @@ abstract class Entity implements \JsonSerializable, EntityInterface {
 	}
 
 	static public function create():static{
-		return static::model()->getContainer()->get(static::class);
+		return static::model()->getContainer()->make(static::class);
 	}
 
 	static public function build(array $record, Entity|null $into = null): static{

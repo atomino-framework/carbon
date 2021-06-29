@@ -18,19 +18,19 @@ use Riimu\Kit\PHPEncoder\PHPEncoder;
 
 class Generator {
 
-	const ATOM_SHADOW_ENTITY_NS = 'Atomino\Atoms\Entity';
-	const ATOM_ENTITY_FINDER_NS = 'Atomino\Atoms\EntityFinder';
+	const ATOM_SHADOW_ENTITY_NS = 'Entity';
+	const ATOM_ENTITY_FINDER_NS = 'EntityFinder';
 
 	private PHPEncoder $encoder;
 	private string $entityPath;
 	private string $shadowPath;
 	private string $finderPath;
 
-	public function __construct(private string $namespace, private Style $style, private CodeFinder $codeFinder, private PathResolverInterface $pathResolver) {
+	public function __construct(private string $namespace, private string $atomsNamespace, private Style $style, private CodeFinder $codeFinder, private PathResolverInterface $pathResolver) {
 		$this->encoder = new PHPEncoder();
 		$this->entityPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace($this->namespace)), strlen($this->pathResolver->path()));
-		$this->shadowPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace(static::ATOM_SHADOW_ENTITY_NS)), strlen($this->pathResolver->path()));
-		$this->finderPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace(static::ATOM_ENTITY_FINDER_NS)), strlen($this->pathResolver->path()));
+		$this->shadowPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace(trim($this->atomsNamespace, '\\').'\\'.static::ATOM_SHADOW_ENTITY_NS)), strlen($this->pathResolver->path()));
+		$this->finderPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace(trim($this->atomsNamespace, '\\').'\\'.static::ATOM_ENTITY_FINDER_NS)), strlen($this->pathResolver->path()));
 	}
 
 	public function create(string $name) {
@@ -40,9 +40,9 @@ class Generator {
 		$translate = [
 			"{{name}}"             => $class,
 			"{{table}}"            => $table,
-			"{{entity-namespace}}" => $this->namespace,
-			"{{shadow-namespace}}" => static::ATOM_SHADOW_ENTITY_NS,
-			"{{finder-namespace}}" => static::ATOM_ENTITY_FINDER_NS,
+			"{{entity-namespace}}" => trim($this->namespace, '\\'),
+			"{{shadow-namespace}}" => trim($this->atomsNamespace, '\\').'\\'.static::ATOM_SHADOW_ENTITY_NS,
+			"{{finder-namespace}}" => trim($this->atomsNamespace, '\\').'\\'.static::ATOM_ENTITY_FINDER_NS,
 			"#:code"               => '',
 			"#:annotation"         => '',
 			"#:attribute"          => '',
@@ -83,6 +83,7 @@ class Generator {
 
 		$entities = $this->codeFinder->Psr4ClassSeeker($this->namespace);
 
+
 		/** @var \Atomino\Carbon\Entity $entity */
 		foreach ($entities as $entity) {
 
@@ -111,9 +112,9 @@ class Generator {
 			$translate = [
 				"{{name}}"             => $class,
 				"{{table}}"            => $model->getTable(),
-				"{{entity-namespace}}" => $this->namespace,
-				"{{shadow-namespace}}" => static::ATOM_SHADOW_ENTITY_NS,
-				"{{finder-namespace}}" => static::ATOM_ENTITY_FINDER_NS,
+				"{{entity-namespace}}" => trim($this->namespace, '\\'),
+				"{{shadow-namespace}}" => trim($this->atomsNamespace, '\\').'\\'.static::ATOM_SHADOW_ENTITY_NS,
+				"{{finder-namespace}}" => trim($this->atomsNamespace, '\\').'\\'.static::ATOM_ENTITY_FINDER_NS,
 				"#:code"               => '',
 				"#:annotation"         => '',
 				"#:attribute"          => '',
