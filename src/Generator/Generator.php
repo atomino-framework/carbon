@@ -264,7 +264,7 @@ class Generator {
 					$cw->addAnnotation("@property-read \\" . $relation->entity . " $" . $relation->target);
 				}
 				if ($relation instanceof HasMany) {
-					$cw->addAnnotation("@property-read \\Atomino\\Atoms\\EntityFinder\\_" . (new \ReflectionClass($relation->entity))->getShortName() . " $" . $relation->target);
+					$cw->addAnnotation("@property-read \\".trim($this->atomsNamespace, '\\').'\\'.static::ATOM_ENTITY_FINDER_NS."\\_" . (new \ReflectionClass($relation->entity))->getShortName() . " $" . $relation->target);
 				}
 				if ($relation instanceof BelongsToMany) {
 					$cw->addAnnotation("@property-read \\" . $relation->entity . "[] $" . $relation->target);
