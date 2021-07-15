@@ -9,7 +9,7 @@ class Smart{
 	#[Pure] public function __construct(private Connection $connection){
 		$this->pdo = $this->connection->getPdo();
 	}
-
+	
 	private function query(string $sql, array $args = []): bool|\PDOStatement{return $this->connection->query($this->applySQLArguments($sql, $args));}
 	private function quote($subject, $qm=true):string{return $this->connection->quote($subject, $qm);}
 	#[Pure] private function escape($subject):string{return $this->connection->escape($subject);}

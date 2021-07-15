@@ -12,9 +12,9 @@ class Filter{
 
 	protected function __construct(){ }
 
-	static public function where(Comparison|Filter|string|bool $sql, ...$sqlParams): static{
+	static public function where(Comparison|Filter|string|false $sql = false, ...$sqlParams): static{
 		$filter = new static();
-		return $filter->addWhere(static:: AND, $sql, $sqlParams);
+		return $filter->addWhere(static::AND, $sql, $sqlParams);
 	}
 
 	public function and(Comparison|Filter|string|bool $sql, ...$args): static{ return $this->addWhere(static:: AND, $sql, $args); }

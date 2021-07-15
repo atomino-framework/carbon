@@ -15,6 +15,7 @@ use Atomino\Carbon\Attributes\Validator;
 use Atomino\Carbon\Attributes\Virtual;
 use Atomino\Carbon\Database\Connection;
 use Atomino\Carbon\Plugin\Plugin;
+use Atomino\Carbon\Validation\EntityContraint;
 use DI\Container;
 use JetBrains\PhpStorm\Pure;
 use Symfony\Contracts\Cache\CacheInterface;
@@ -29,6 +30,7 @@ class Model {
 	private CacheInterface|null $cache = null;
 	private Repository $repository;
 	private ValidatorSet $validators;
+	private EntityValidatorSet $entityValidators;
 	private array $eventHandlers = [];
 
 	/** @var \Atomino\Carbon\Field\Field[] */
@@ -128,9 +130,14 @@ class Model {
 
 	private function setValidators(\ReflectionClass $ENTITY) {
 		$this->validators = new ValidatorSet();
+		$this->entityValidators = new EntityValidatorSet();
 		$Validators = Validator::all($ENTITY, $ENTITY->getParentClass());
 		foreach ($Validators as $Validator) {
-			$this->validators->addValidator($Validator->field, $Validator->validator);
+			if($Validator->validator instanceof EntityContraint){
+				$this->entityValidators->addValidator( $Validator->validator);
+			}else{
+				$this->validators->addValidator($Validator->field, $Validator->validator);
+			}
 		}
 	}
 	private function setEventHandlers(\ReflectionClass $ENTITY) {
@@ -170,6 +177,7 @@ class Model {
 	public function getRelations(): array { return $this->relations; }
 
 	public function getValidators(): ValidatorSet { return $this->validators; }
+	public function getEntityValidators(): EntityValidatorSet { return $this->entityValidators; }
 
 	/**
 	 * @param $event
