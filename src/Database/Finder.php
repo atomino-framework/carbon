@@ -112,7 +112,7 @@ class Finder {
 			(count($this->select) ? join(',', $this->select) : '*') . ' ' .
 			' FROM ' . $this->from . ' ' .
 			($this->filter != null && !is_null($filter = $this->filter->getSql($this->connection)) ? ' WHERE ' . $filter . ' ' : '') .
-			(count($this->groupBy) ? 'GROUP BY '.join(',', $this->groupBy).' ' :'')
+			(count($this->groupBy) ? 'GROUP BY '.join(',', $this->groupBy).' ' :'') .
 			($this->having != null && !is_null($having = $this->having->getSql($this->connection)) ? ' HAVING ' . $having . ' ' : '') .
 			(count($this->order) ? ' ORDER BY ' . join(', ', $this->order) : '') .
 			($limit ? ' LIMIT ' . $limit : '') .
