@@ -29,8 +29,9 @@ class Finder {
 		return $this;
 	}
 
-	public function groupBy(string ...$fields) {
+	public function groupBy(string ...$fields):static {
 		$this->groupBy = array_map(function ($field): string { return $this->connection->escape($field); }, $fields);
+		return $this;
 	}
 
 	public function table(string $from): static {
