@@ -161,7 +161,7 @@ abstract class Entity implements \JsonSerializable, EntityInterface {
 		return $record;
 	}
 
-	public function import(array $data) {
+	public function import(array $data):static {
 		foreach (static::model()->getFields() as $field) {
 			$fieldName = $field->getName();
 			if (array_key_exists($fieldName, $data)) {
@@ -174,6 +174,7 @@ abstract class Entity implements \JsonSerializable, EntityInterface {
 				}
 			}
 		}
+		return $this;
 	}
 
 	public function export(): array {
