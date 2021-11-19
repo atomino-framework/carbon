@@ -1,8 +1,11 @@
 <?php namespace Atomino\Carbon\Generator;
 
+use Application\Entity\Content;
+use Application\Entity\Tag;
 use Atomino\Carbon\Attributes\BelongsTo;
 use Atomino\Carbon\Attributes\BelongsToMany;
 use Atomino\Carbon\Attributes\HasMany;
+use Atomino\Carbon\Attributes\Protect;
 use Atomino\Carbon\Attributes\RequiredField;
 use Atomino\Carbon\Attributes\Virtual;
 use Atomino\Carbon\Database\Descriptor;
@@ -20,39 +23,45 @@ class Generator {
 
 	const ATOM_SHADOW_ENTITY_NS = 'Entity';
 	const ATOM_ENTITY_FINDER_NS = 'EntityFinder';
+	const ATOM_ENTITY_HELPERS_NS = 'EntityHelper';
 
 	private PHPEncoder $encoder;
 	private string $entityPath;
 	private string $shadowPath;
-	private string $finderPath;
+	private string $helperPath;
 
 	public function __construct(private string $namespace, private string $atomsNamespace, private Style $style, private CodeFinder $codeFinder, private PathResolverInterface $pathResolver) {
 		$this->encoder = new PHPEncoder();
 		$this->entityPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace($this->namespace)), strlen($this->pathResolver->path()));
-		$this->shadowPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace(trim($this->atomsNamespace, '\\').'\\'.static::ATOM_SHADOW_ENTITY_NS)), strlen($this->pathResolver->path()));
-		$this->finderPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace(trim($this->atomsNamespace, '\\').'\\'.static::ATOM_ENTITY_FINDER_NS)), strlen($this->pathResolver->path()));
+		$this->shadowPath = substr(realpath($this->codeFinder->Psr4ResolveNamespace(trim($this->atomsNamespace, '\\') . '\\' . static::ATOM_SHADOW_ENTITY_NS)), strlen($this->pathResolver->path()));
+		$this->helperPath = $this->shadowPath;
+	}
+
+	private function getTranslate(string $name, string $table, CodeWriter|null $cw = null): array {
+
+		return [
+			"{{name}}"             => $name,
+			"{{table}}"            => $table,
+			"{{entity-namespace}}" => trim($this->namespace, '\\'),
+			"{{shadow-namespace}}" => trim($this->atomsNamespace, '\\') . '\\' . static::ATOM_SHADOW_ENTITY_NS,
+			"{{helper-namespace}}" => trim($this->atomsNamespace, '\\') . '\\' . static::ATOM_ENTITY_HELPERS_NS,
+			"#:code"               => !is_null($cw) ? $cw->getCode() : "",
+			"#:annotation"         => !is_null($cw) ? $cw->getAnnotation() : "",
+			"#:attribute"          => !is_null($cw) ? $cw->getAttribute() : "",
+			"{{interface}}"        => !is_null($cw) ? $cw->getInterface() : "",
+		];
 	}
 
 	public function create(string $name) {
 		$table = (new CamelCaseHelper())->toSnakeCase($name);
 		$class = ucfirst((new SnakeCaseHelper())->toCamelCase($table));
 
-		$translate = [
-			"{{name}}"             => $class,
-			"{{table}}"            => $table,
-			"{{entity-namespace}}" => trim($this->namespace, '\\'),
-			"{{shadow-namespace}}" => trim($this->atomsNamespace, '\\').'\\'.static::ATOM_SHADOW_ENTITY_NS,
-			"{{finder-namespace}}" => trim($this->atomsNamespace, '\\').'\\'.static::ATOM_ENTITY_FINDER_NS,
-			"#:code"               => '',
-			"#:annotation"         => '',
-			"#:attribute"          => '',
-			"{{interface}}"        => '',
-		];
+		$translate = $this->getTranslate($class, $table);
 
 		$files = [
 			"entity.txt" => "{$this->entityPath}/{$class}.php",
 			"shadow.txt" => "{$this->shadowPath}/_{$class}.php",
-			"finder.txt" => "{$this->finderPath}/_{$class}.php",
+			//			"finder.txt" => "{$this->finderPath}/_{$class}.php",
 		];
 
 		$this->style->_section('Create base entity "' . $class . '"');
@@ -83,6 +92,7 @@ class Generator {
 
 		$entities = $this->codeFinder->Psr4ClassSeeker($this->namespace);
 
+		$helpers = [];
 
 		/** @var \Atomino\Carbon\Entity $entity */
 		foreach ($entities as $entity) {
@@ -91,10 +101,12 @@ class Generator {
 			$class = $ENTITY->getShortName();
 			$style->_section($class);
 			$model = new Model($entity);
+			$cw = new CodeWriter();
 
 			$style->_task('Fetching table info: ' . $model->getTable());
 			$table = $model->getConnection()->getDescriptor()->getTable($model->getTable());
 
+			#region table check
 			if (is_null($table)) {
 				$errors[] = [$class, $model->getTable() . ' table does not exists!'];
 				$style->_task_error('Table does not exists!');
@@ -107,22 +119,9 @@ class Generator {
 
 			} else $style->_task_ok();
 
+			#endregion
+
 			$fields = $this->fetchFields($model, $table, $errors);
-
-			$translate = [
-				"{{name}}"             => $class,
-				"{{table}}"            => $model->getTable(),
-				"{{entity-namespace}}" => trim($this->namespace, '\\'),
-				"{{shadow-namespace}}" => trim($this->atomsNamespace, '\\').'\\'.static::ATOM_SHADOW_ENTITY_NS,
-				"{{finder-namespace}}" => trim($this->atomsNamespace, '\\').'\\'.static::ATOM_ENTITY_FINDER_NS,
-				"#:code"               => '',
-				"#:annotation"         => '',
-				"#:attribute"          => '',
-				"{{interface}}"        => '',
-			];
-
-			$cw = new CodeWriter();
-
 
 			#region plugins
 			foreach ($ENTITY->getAttributes(Plugin::class, \ReflectionAttribute::IS_INSTANCEOF) as $Plugin) {
@@ -134,7 +133,7 @@ class Generator {
 			}
 			#endregion
 
-
+			#region fields
 			foreach ($fields as $field) {
 				/** @var \Atomino\Carbon\Field\Attributes\FieldDescriptor $f_descriptor */
 				$f_descriptor = $field['descriptor'];
@@ -146,7 +145,6 @@ class Generator {
 				$name = $f_entity->getName();
 				$fieldType = $f_descriptor->type . (is_null($f_descriptor->default) ? '|null' : '');
 
-
 				# region validator-attributes
 				$validators = (!$f_db->isVirtual() && !$f_db->isPrimary()) ? $f_entityFieldType::getValidators($f_db) : [];
 				foreach ($validators as $validator) {
@@ -156,13 +154,11 @@ class Generator {
 				}
 				# endregion
 
-
 				# region field-attributes
 				$cw->addAttribute(
 					'#[Field("' . $name . '", \\' . $f_entityFieldType . '::class' . ($f_descriptor->hasOptions ? ', ' . $this->encoder->encode($f_db->getOptions(), ['whitespace' => false]) : '') . ')]'
 				);
 				# endregion
-
 
 				#region protect-attributes
 				if ($f_db->isPrimary() || $f_db->isVirtual()) {
@@ -172,7 +168,6 @@ class Generator {
 				}
 				#endregion
 
-
 				#region immutable-attributes
 				if ($f_db->isPrimary() || $f_db->isVirtual()) {
 					$cw->addAttribute(
@@ -181,16 +176,13 @@ class Generator {
 				}
 				#endregion
 
-
 				#region fields
 				$cw->addCode("const " . $name . " = '" . $name . "';");
 				#endregion
 
-
 				#region comparators
 				$cw->addAnnotation("@method static \Atomino\Carbon\Database\Finder\Comparison " . $name . "(\$isin = null)");
 				#endregion
-
 
 				#region fields
 				$str = $f_entity->isProtected() ? 'protected' : 'public';
@@ -202,7 +194,6 @@ class Generator {
 				$cw->addCode($str);
 				#endregion
 
-
 				#region getters
 				$getter = $f_entity->getGetter();
 				if (!is_null($getter)) {
@@ -210,14 +201,12 @@ class Generator {
 				}
 				#endregion
 
-
 				#region setters
 				$setter = $f_entity->getSetter();
 				if (!is_null($setter)) {
 					$cw->addCode("protected function " . $setter . "(" . $fieldType . " \$value){ \$this->" . $name . " = \$value;}");
 				}
 				#endregion
-
 
 				#region properties
 				if ($f_entity->getGetter() && $f_entity->getSetter()) {
@@ -229,7 +218,6 @@ class Generator {
 				}
 				#endregion
 
-
 				#region enums
 				if ($f_descriptor->hasOptions) {
 					foreach ($f_db->getOptions() as $option) {
@@ -237,9 +225,8 @@ class Generator {
 					}
 				}
 				#endregion
-
 			}
-
+			#endregion
 
 			#region check-required-fields
 			$Requireds = RequiredField::all($ENTITY, $ENTITY->getParentClass(), ...$ENTITY->getTraits(), ...$ENTITY->getParentClass()->getTraits());
@@ -257,7 +244,6 @@ class Generator {
 			}
 			#endregion
 
-
 			#region relations
 			foreach ($model->getRelations() as $relation) {
 				if ($relation instanceof BelongsTo) {
@@ -272,7 +258,6 @@ class Generator {
 			}
 			#endregion
 
-
 			#region virtuals
 			foreach (Virtual::all($ENTITY) as $virtual) {
 				if ($virtual->get && $virtual->set) {
@@ -283,15 +268,68 @@ class Generator {
 					$cw->addAnnotation("@property-write " . $virtual->type . " \$" . $virtual->field);
 				}
 				if ($virtual->get) $cw->addCode("abstract protected function get" . ucfirst($virtual->field) . "():" . $virtual->type . ";");
-				if ($virtual->set) $cw->addCode("abstract protected function set" . ucfirst($virtual->field) . "(" . $virtual->type . " \$value):" . ";");
+				if ($virtual->set) $cw->addCode("abstract protected function set" . ucfirst($virtual->field) . "(" . $virtual->type . " \$value):void" . ";");
 			}
 			#endregion
 
+			#region finder
+			$finderName = $this->getFinderName($class);
+			$cw->addAnnotation("@method static \\" . trim($this->atomsNamespace, '\\') . '\\' . static::ATOM_ENTITY_HELPERS_NS . "\\" . $finderName . " search( Filter \$filter = null )");
+			$helpers[] = [
+				"template"  => "helper-finder.txt",
+				"translate" => array_merge($this->getTranslate($class, $model->getTable()), ["{{finder-name}}" => $finderName]),
+			];
+			#endregion
 
-			$translate['#:code'] = $cw->getCode();
-			$translate['#:attribute'] = $cw->getAttribute();
-			$translate['#:annotation'] = $cw->getAnnotation();
-			$translate['{{interface}}'] = $cw->getInterface();
+			#region links
+			if ($model->isLink()) {
+				$link = $model->getLink();
+				$cw->addAnnotation("@method static \\" . trim($this->atomsNamespace, '\\') . '\\' . static::ATOM_ENTITY_HELPERS_NS . "\\_" . $class . "_LINK_LEFT " . $link->left->name . "(\\" . $link->left->class . "|null \$" . $link->left->name . " = null)");
+				$cw->addAnnotation("@method static \\" . trim($this->atomsNamespace, '\\') . '\\' . static::ATOM_ENTITY_HELPERS_NS . "\\_" . $class . "_LINK_RIGHT " . $link->right->name . "(\\" . $link->right->class . "|null \$" . $link->right->name . " = null)");
+				$cw->addAttribute("#[\Atomino\Carbon\Attributes\BelongsTo(\"".$link->left->name."\", \\" . $link->left->class . "::class, \"left\")]");
+				$cw->addAttribute("#[\Atomino\Carbon\Attributes\BelongsTo(\"".$link->right->name."\", \\" . $link->right->class . "::class, \"right\")]");
+				$cw->addAttribute("#[Protect(\"left\")]");
+				$cw->addAttribute("#[Protect(\"right\")]");
+
+				$helpers[] = [
+					"template"  => "helper-link.txt",
+					"translate" => [
+						"{{link-class}}"   => $ENTITY->getName(),
+						"{{right-class}}"  => $link->right->class,
+						"{{right-name}}"   => $link->right->name,
+						"{{right-finder}}" => $this->getFinderName($link->right->name),
+						"{{right-link}}"   => "_" . $class . "_LINK_RIGHT",
+						"{{left-class}}"   => $link->left->class,
+						"{{left-name}}"    => $link->left->name,
+						"{{left-finder}}"  => $this->getFinderName($link->left->name),
+						"{{left-link}}"    => "_" . $class . "_LINK_LEFT",
+
+					],
+				];
+			}
+			/*
+			 * /*
+			 * @method {{left-finder}} search({{right-class}} ...${{right-name}})
+			 * /
+			abstract class {{left-link}} extends LinkHandler {}
+
+				/**
+				 * @method {{link-class}}|null add({{left-class}} $content)
+				 * @method void remove({{left-class}}|null ${{left-name}}=null)
+				 * @method void sync({{left-class}} ...${{left-name}})
+				 * @method {{link-class}}|null has({{left-class}} ${{left-name}})
+				 * @method int count()
+				 * @method {{right-finder}} search({{left-class}} ...${{left-name}})
+				 * /
+				abstract class {{right-link}} extends LinkHandler {}
+			 */
+
+
+			#endregion
+
+
+			#region write shadow entity
+			$translate = $this->getTranslate($class, $model->getTable(), $cw);
 
 			$style->_task("{$this->shadowPath}/_{$class}.php");
 			$template = file_get_contents(__DIR__ . '/$resources/shadow.txt');
@@ -308,24 +346,40 @@ class Generator {
 			} else {
 				$style->_task_ok();
 			}
+			#endregion
+
 		}
 
 		if (count($errors)) {
 			$style->_section("Errors");
-
 			foreach ($errors as $error) {
 				$style->_task($error[0]);
 				$style->_task_error($error[1]);
 			}
 		}
-
 		if ($modified) {
 			$style->newLine();
 			$style->_warn('Rerun generator!');
 			return 1;
 		}
+
+		#region write helper
+		$template = file_get_contents(__DIR__ . '/$resources/helper.txt');
+		$template = strtr($template, $translate);
+		$outfile = $this->pathResolver->path("{$this->helperPath}/@helpers.php");
+		file_put_contents($outfile, $template);
+
+		foreach ($helpers as $helper) {
+			$template = file_get_contents(__DIR__ . '/$resources/' . $helper["template"]);
+			$template = trim(strtr($template, $helper["translate"])) . "\n\n";
+			file_put_contents($outfile, $template, FILE_APPEND);
+		}
+		#endregion
+
 		return 0;
 	}
+
+	private function getFinderName(string $class) { return "_" . $class . "_FINDER"; }
 
 	private function fetchFields(Model $model, Descriptor\Table $table, &$errors): array {
 		$style = $this->style;

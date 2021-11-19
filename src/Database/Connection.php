@@ -32,7 +32,7 @@ class Connection {
 		}
 	}
 	public function quote(mixed $subject, bool $qm = true): string { return $subject === null ? 'NULL' : ($qm ? $this->pdo->quote($subject) : trim($this->pdo->quote($subject), "'")); }
-	public function escape($subject): string { return '`' . $subject . '`'; }
+	public function escape($subject): string { return str_replace("`*`","*", "`" . str_replace(".", "`.`", $subject) . "`"); }
 
 	public function getPdo(): \PDO { return $this->pdo; }
 	public function getDsn(): string { return $this->dsn; }

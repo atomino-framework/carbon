@@ -1,0 +1,5 @@
+ /**
+  * @method \Application\Entity\{{name}}[] collect( int|null $limit = null, int|null $offset = null, int|bool|null &$count = false)
+  * @method \Application\Entity\{{name}}[] page( int $size, int $page = 1, int|bool|null &$count = false )
+  * @method \Application\Entity\{{name}}|null pick()
+  */ abstract class {{finder-name}} extends \Atomino\Carbon\Finder{}

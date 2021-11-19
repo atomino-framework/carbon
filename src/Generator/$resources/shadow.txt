@@ -11,7 +11,6 @@ use Atomino\Carbon\Attributes\RequiredField;
 
 
 /**
- * @method static \{{finder-namespace}}\_{{name}} search( Filter $filter = null )
 #:annotation
  */
 #[RequiredField('id', \Atomino\Carbon\Field\IntField::class)]

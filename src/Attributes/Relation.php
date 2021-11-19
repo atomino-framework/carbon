@@ -8,7 +8,7 @@ use Attribute;
 abstract class Relation extends Attr{
 	public function __construct(
 		public string $target,
-		public string $entity,
+		public string|Entity $entity,
 		public string $field
 	){
 	}

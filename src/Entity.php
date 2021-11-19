@@ -1,13 +1,9 @@
 <?php namespace Atomino\Carbon;
 
+use Atomino\Carbon\Attributes\Link;
 use Atomino\Carbon\Database\Finder\Comparison;
 use Atomino\Carbon\Database\Finder\Filter;
-use Atomino\Carbon\Validation\UniqueEntity;
-use Symfony\Component\Validator\Constraints\Unique;
-use Symfony\Component\Validator\Constraints\UniqueValidator;
-use Symfony\Component\Validator\ConstraintViolationList;
 use Symfony\Component\Validator\Validation;
-use Symfony\Component\Validator\Violation\ConstraintViolationBuilder;
 use Symfony\Contracts\Cache\CacheInterface;
 
 class_alias(CacheInterface::class, \Atomino\Carbon\Cache::class);
@@ -26,6 +22,8 @@ abstract class Entity implements \JsonSerializable, EntityInterface {
 	const EVENT_ON_LOAD = "EVENT_ON_LOAD";
 
 	protected int|null $id = null;
+	/** @var Link[] */
+	private $_links = [];
 
 	protected function handleEvent(string $event, mixed $data = null): bool {
 		$result = true;
@@ -47,12 +45,17 @@ abstract class Entity implements \JsonSerializable, EntityInterface {
 		return
 			static::model()->hasGetter($name) ||
 			static::model()->hasRelation($name) ||
+//			static::model()->hasLink($name) ||
 			method_exists($this, $method = '__get' . ucfirst($name));
 	}
 
 	public function __get($name) {
 		if (static::model()->hasGetter($name)) return $this->{static::model()->getGetter($name)}();
 		if (static::model()->hasRelation($name)) return static::model()->getRelation($name)->fetch($this);
+//		if (static::model()->hasLink($name)){
+//			if(!array_key_exists($name, $this->_links))	$this->_links[$name] = static::model()->getLink($name)->create(static::model()->getContainer(), $this);
+//			return $this->_links[$name];
+//		}
 		if (method_exists($this, $method = '__get' . ucfirst($name))) return $this->$method();
 		return null;
 	}
@@ -64,13 +67,8 @@ abstract class Entity implements \JsonSerializable, EntityInterface {
 	}
 
 	public static function __callStatic($name, $arguments) {
-		if (static::model()->hasField($name)) {
-			$comparison = new Comparison($name);
-			if (array_key_exists(0, $arguments) && !is_null($arguments[0])) {
-				$comparison->isin($arguments[0]);
-			}
-			return $comparison;
-		}
+		if (static::model()->hasField($name)) return Comparison::field(...[$name, ...$arguments]);
+		if (static::model()->isLink() && static::model()->getLink()->has($name)) return static::model()->getLink()->getHandler(...[$name, ...$arguments]);
 	}
 
 	/**
@@ -84,6 +82,7 @@ abstract class Entity implements \JsonSerializable, EntityInterface {
 		}
 		return null;
 	}
+
 	private function insert(): int|null {
 		if ($this->handleEvent(self::EVENT_BEFORE_INSERT) === false) return null;
 		if (count($errors = $this->validate())) throw new ValidationError($errors);
@@ -91,6 +90,7 @@ abstract class Entity implements \JsonSerializable, EntityInterface {
 		$this->handleEvent(self::EVENT_ON_INSERT);
 		return $this->id;
 	}
+
 	private function update(): int|null {
 		if ($this->handleEvent(self::EVENT_BEFORE_UPDATE) === false) return null;
 		if (count($errors = $this->validate())) throw new ValidationError($errors);
@@ -98,6 +98,7 @@ abstract class Entity implements \JsonSerializable, EntityInterface {
 		$this->handleEvent(self::EVENT_ON_UPDATE);
 		return $this->id;
 	}
+
 	public function delete() {
 		if ($this->handleEvent(self::EVENT_BEFORE_DELETE) === false) return null;
 		static::model()->getRepository()->delete($this);
@@ -105,6 +106,7 @@ abstract class Entity implements \JsonSerializable, EntityInterface {
 		// TODO: delete attachments
 		$this->id = -1;
 	}
+
 	public function reload() {
 		static::model()->getRepository()->pick($this->id, $this);
 	}
@@ -161,7 +163,7 @@ abstract class Entity implements \JsonSerializable, EntityInterface {
 		return $record;
 	}
 
-	public function import(array $data):static {
+	public function import(array $data): static {
 		foreach (static::model()->getFields() as $field) {
 			$fieldName = $field->getName();
 			if (array_key_exists($fieldName, $data)) {

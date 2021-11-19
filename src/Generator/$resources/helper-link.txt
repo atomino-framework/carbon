@@ -1,0 +1,21 @@
+/**
+ * @method \{{link-class}}|null link(\{{right-class}} ${{right-name}})
+ * @method void unlink(\{{right-class}}|null ${{right-name}}=null)
+ * @method void sync(\{{right-class}} ...${{right-name}})
+  * @method void relink(\{{right-class}} $from, \{{right-class}} $to)
+ * @method \{{link-class}}|null has(\{{right-class}} ${{right-name}})
+ * @method int count()
+ * @method {{left-finder}} search(\{{right-class}} ${{right-name}}, \{{right-class}} ...${{right-name}})
+ */
+abstract class {{left-link}} extends \Atomino\Carbon\Link\LinkHandler {}
+
+/**
+ * @method \{{link-class}}|null link(\{{left-class}} $content)
+ * @method void unlink(\{{left-class}}|null ${{left-name}}=null)
+ * @method void sync(\{{left-class}} ...${{left-name}})
+ * @method void relink(\{{left-class}} $from, \{{left-class}} $to)
+ * @method \{{link-class}}|null has(\{{left-class}} ${{left-name}})
+ * @method int count()
+ * @method {{right-finder}} search(\{{left-class}} ${{left-name}}, \{{left-class}} ...${{left-name}}s)
+ */
+abstract class {{right-link}} extends \Atomino\Carbon\Link\LinkHandler {}

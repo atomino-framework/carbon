@@ -1,0 +1,4 @@
+<?php namespace {{helper-namespace}};
+
+/* To help the code completion... we are waiting for generics... */
+
