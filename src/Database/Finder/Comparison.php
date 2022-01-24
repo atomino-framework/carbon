@@ -16,7 +16,7 @@ class Comparison {
 	protected string $quote = self::QUOTE;
 	protected Connection|null $connection = null;
 	protected bool $escapeField = true;
- 
+
 	const OPERATOR_IS = 'is';
 	const OPERATOR_IS_NULL = 'is_null';
 	const OPERATOR_IS_NOT_NULL = 'is_not_null';
@@ -36,6 +36,7 @@ class Comparison {
 	const OPERATOR_GTE = 'gte';
 	const OPERATOR_LT = 'lt';
 	const OPERATOR_LTE = 'lte';
+	const OPERATOR_JSON_CONTAINS = 'json_contains';
 
 	static public function field(string $field, $isIn = null) {
 		$comp = new static($field);
@@ -77,11 +78,18 @@ class Comparison {
 			static::OPERATOR_ENDS => "${field} LIKE '{$this->quote($this->value, self::QUOTE_WITHOUT_QM)}%'",
 			static::OPERATOR_REGEX => "${field} REGEXP '{$this->value}'",
 			static::OPERATOR_BETWEEN => "${field} BETWEEN {$this->quote($this->value[0])} AND {$this->quote($this->value[1])}",
+			static::OPERATOR_JSON_CONTAINS => "JSON_CONTAINS(${field}, {$this->quote($this->value[0])}, '{$this->value[1]}')",
 			default => ''
 		};
 	}
 
 	#region operands
+
+	public function json_contains($value, $path="$"): static {
+		$this->operator = self::OPERATOR_JSON_CONTAINS;
+		$this->value = [json_encode($value), $path];
+		return $this;
+	}
 
 	public function is($value): static {
 		$this->operator = self::OPERATOR_IS;
