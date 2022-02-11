@@ -42,14 +42,14 @@ class Filter {
 				$where = $connection->getSmart()->applySQLArguments($segment['sql'], $segment['args']);
 			}
 
-			if (trim($where)) {
+			if (!is_null($where) && trim($where)) {
 				if (strlen($sql) > 0) {
 					$sql .= $segment['type'] & self:: AND ? ' AND ' : ' OR ';
 				}
 				$sql .= ($segment['type'] & self::NOT ? ' NOT ' : '') . "(" . $where . ")";
 			}
 		}
-		return $sql;
+		return $sql==="" ? null : $sql;
 	}
 
 	protected function getSqlFromArray(array $filter, Connection $connection): ?string {

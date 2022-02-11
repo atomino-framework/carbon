@@ -84,299 +84,276 @@ class Generator {
 
 	public function generate() {
 
-		$errors = [];
+		$summary = [];
 
 		$style = $this->style;
-
 		$modified = false;
-
 		$entities = $this->codeFinder->Psr4ClassSeeker($this->namespace);
-
 		$helpers = [];
 
 		/** @var \Atomino\Carbon\Entity $entity */
 		foreach ($entities as $entity) {
+			$errors = [];
 
 			$ENTITY = new \ReflectionClass($entity);
 			$class = $ENTITY->getShortName();
-			$style->_section($class);
 			$model = new Model($entity);
 			$cw = new CodeWriter();
 
-			$style->_task('Fetching table info: ' . $model->getTable());
 			$table = $model->getConnection()->getDescriptor()->getTable($model->getTable());
 
 			#region table check
 			if (is_null($table)) {
 				$errors[] = [$class, $model->getTable() . ' table does not exists!'];
-				$style->_task_error('Table does not exists!');
-				continue;
-			}
-
-			if ($table->isView() && $model->isMutable()) {
-				$style->_task_warn('Storage is a VIEW. Entity should be immutable!', false);
+			} elseif ($table->isView() && $model->isMutable()) {
 				$errors[] = [$class, $model->getTable() . ' Storage is a VIEW. Entity should be immutable!'];
-
-			} else $style->_task_ok();
-
-			#endregion
-
-			$fields = $this->fetchFields($model, $table, $errors);
-
-			#region plugins
-			foreach ($ENTITY->getAttributes(Plugin::class, \ReflectionAttribute::IS_INSTANCEOF) as $Plugin) {
-				$instance = $Plugin->newInstance();
-				if (!is_null($trait = $instance->getTrait())) {
-					$cw->addCode('use \\' . trim($trait, '\\') . ';');
-				}
-				$instance->generate($ENTITY, $cw);
 			}
+
 			#endregion
 
-			#region fields
-			foreach ($fields as $field) {
-				/** @var \Atomino\Carbon\Field\Attributes\FieldDescriptor $f_descriptor */
-				$f_descriptor = $field['descriptor'];
-				/** @var \Atomino\Carbon\Field\Field $f_entity */
-				$f_entity = $field['entity'];
-				/** @var \Atomino\Carbon\Database\Descriptor\Field\Field $f_db */
-				$f_db = $field['db'];
-				$f_entityFieldType = $field['entityFieldType'];
-				$name = $f_entity->getName();
-				$fieldType = $f_descriptor->type . (is_null($f_descriptor->default) ? '|null' : '');
+			if (count($errors) === 0) {
+				$fields = $this->fetchFields($model, $table, $errors);
+				$eHelpers = [];
 
-				# region validator-attributes
-				$validators = (!$f_db->isVirtual() && !$f_db->isPrimary()) ? $f_entityFieldType::getValidators($f_db) : [];
-				foreach ($validators as $validator) {
-					$cw->addAttribute(
-						'#[Validator("' . $name . '", \\' . $validator[0] . '::class' . (count($validator) > 1 ? ', ' . $this->encoder->encode($validator[1], ['whitespace' => false]) : '') . ')]'
-					);
-				}
-				# endregion
-
-				# region field-attributes
-				$cw->addAttribute(
-					'#[Field("' . $name . '", \\' . $f_entityFieldType . '::class' . ($f_descriptor->hasOptions ? ', ' . $this->encoder->encode($f_db->getOptions(), ['whitespace' => false]) : '') . ')]'
-				);
-				# endregion
-
-				#region protect-attributes
-				if ($f_db->isPrimary() || $f_db->isVirtual()) {
-					$cw->addAttribute(
-						'#[Protect("' . $name . '", true, false)]'
-					);
-				}
-				#endregion
-
-				#region immutable-attributes
-				if ($f_db->isPrimary() || $f_db->isVirtual()) {
-					$cw->addAttribute(
-						'#[Immutable("' . $name . '",' . ($f_db->isAutoInsert() ? 'false' : 'true') . ')]'
-					);
+				#region plugins
+				foreach ($ENTITY->getAttributes(Plugin::class, \ReflectionAttribute::IS_INSTANCEOF) as $Plugin) {
+					$instance = $Plugin->newInstance();
+					if (!is_null($trait = $instance->getTrait())) {
+						$cw->addCode('use \\' . trim($trait, '\\') . ';');
+					}
+					$instance->generate($ENTITY, $cw);
 				}
 				#endregion
 
 				#region fields
-				$cw->addCode("const " . $name . " = '" . $name . "';");
-				#endregion
+				foreach ($fields as $field) {
+					/** @var \Atomino\Carbon\Field\Attributes\FieldDescriptor $f_descriptor */
+					$f_descriptor = $field['descriptor'];
+					/** @var \Atomino\Carbon\Field\Field $f_entity */
+					$f_entity = $field['entity'];
+					/** @var \Atomino\Carbon\Database\Descriptor\Field\Field $f_db */
+					$f_db = $field['db'];
+					$f_entityFieldType = $field['entityFieldType'];
+					$name = $f_entity->getName();
+					$fieldType = $f_descriptor->type . (is_null($f_descriptor->default) ? '|null' : '');
 
-				#region comparators
-				$cw->addAnnotation("@method static \Atomino\Carbon\Database\Finder\Comparison " . $name . "(\$isin = null)");
-				#endregion
+					# region validator-attributes
+					$validators = (!$f_db->isVirtual() && !$f_db->isPrimary()) ? $f_entityFieldType::getValidators($f_db) : [];
+					foreach ($validators as $validator) {
+						$cw->addAttribute(
+							'#[Validator("' . $name . '", \\' . $validator[0] . '::class' . (count($validator) > 1 ? ', ' . $this->encoder->encode($validator[1], ['whitespace' => false]) : '') . ')]'
+						);
+					}
+					# endregion
 
-				#region fields
-				$str = $f_entity->isProtected() ? 'protected' : 'public';
-				$str .= ' ';
-				$str .= $fieldType;
-				$str .= ' ';
-				$str .= '$' . $name . ' = ' . $this->encoder->encode($f_descriptor->default);
-				$str .= ';';
-				$cw->addCode($str);
-				#endregion
+					# region field-attributes
+					$cw->addAttribute(
+						'#[Field("' . $name . '", \\' . $f_entityFieldType . '::class' . ($f_descriptor->hasOptions ? ', ' . $this->encoder->encode($f_db->getOptions(), ['whitespace' => false]) : '') . ')]'
+					);
+					# endregion
 
-				#region getters
-				$getter = $f_entity->getGetter();
-				if (!is_null($getter)) {
-					$cw->addCode("protected function " . $getter . "():" . $fieldType . "{ return \$this->" . $name . ";}");
+					#region protect-attributes
+					if ($f_db->isPrimary() || $f_db->isVirtual()) {
+						$cw->addAttribute(
+							'#[Protect("' . $name . '", true, false)]'
+						);
+					}
+					#endregion
+
+					#region immutable-attributes
+					if ($f_db->isPrimary() || $f_db->isVirtual()) {
+						$cw->addAttribute(
+							'#[Immutable("' . $name . '",' . ($f_db->isAutoInsert() ? 'false' : 'true') . ')]'
+						);
+					}
+					#endregion
+
+					#region fields
+					$cw->addCode("const " . $name . " = '" . $name . "';");
+					#endregion
+
+					#region comparators
+					$cw->addAnnotation("@method static \Atomino\Carbon\Database\Finder\Comparison " . $name . "(\$isin = null)");
+					#endregion
+
+					#region fields
+					$str = $f_entity->isProtected() ? 'protected' : 'public';
+					$str .= ' ';
+					$str .= $fieldType;
+					$str .= ' ';
+					$str .= '$' . $name . ' = ' . $this->encoder->encode($f_descriptor->default);
+					$str .= ';';
+					$cw->addCode($str);
+					#endregion
+
+					#region getters
+					$getter = $f_entity->getGetter();
+					if (!is_null($getter)) {
+						$cw->addCode("protected function " . $getter . "():" . $fieldType . "{ return \$this->" . $name . ";}");
+					}
+					#endregion
+
+					#region setters
+					$setter = $f_entity->getSetter();
+					if (!is_null($setter)) {
+						$cw->addCode("protected function " . $setter . "(" . $fieldType . " \$value){ \$this->" . $name . " = \$value;}");
+					}
+					#endregion
+
+					#region properties
+					if ($f_entity->getGetter() && $f_entity->getSetter()) {
+						$cw->addAnnotation("@property " . $fieldType . " \$" . $name);
+					} elseif ($f_entity->getGetter()) {
+						$cw->addAnnotation("@property-read " . $fieldType . " \$" . $name);
+					} elseif ($f_entity->getSetter()) {
+						$cw->addAnnotation("@property-write " . $fieldType . " \$" . $name);
+					}
+					#endregion
+
+					#region enums
+					if ($f_descriptor->hasOptions) {
+						foreach ($f_db->getOptions() as $option) {
+							$cw->addCode("const " . $name . "__" . $option . " = '" . $option . "';");
+						}
+					}
+					#endregion
 				}
 				#endregion
 
-				#region setters
-				$setter = $f_entity->getSetter();
-				if (!is_null($setter)) {
-					$cw->addCode("protected function " . $setter . "(" . $fieldType . " \$value){ \$this->" . $name . " = \$value;}");
-				}
-				#endregion
-
-				#region properties
-				if ($f_entity->getGetter() && $f_entity->getSetter()) {
-					$cw->addAnnotation("@property " . $fieldType . " \$" . $name);
-				} elseif ($f_entity->getGetter()) {
-					$cw->addAnnotation("@property-read " . $fieldType . " \$" . $name);
-				} elseif ($f_entity->getSetter()) {
-					$cw->addAnnotation("@property-write " . $fieldType . " \$" . $name);
-				}
-				#endregion
-
-				#region enums
-				if ($f_descriptor->hasOptions) {
-					foreach ($f_db->getOptions() as $option) {
-						$cw->addCode("const " . $name . "__" . $option . " = '" . $option . "';");
+				#region check-required-fields
+				$Requireds = RequiredField::all($ENTITY, $ENTITY->getParentClass(), ...$ENTITY->getTraits(), ...$ENTITY->getParentClass()->getTraits());
+				foreach ($Requireds as $Required) {
+					//$style->_task('Required field: ' . $Required->field);
+					if (!array_key_exists($Required->field, $fields)) {
+						//$style->_task_error('missing');
+						$errors[] = [$class, 'Required field missing: ' . $Required->field];
+					} elseif ($fields[$Required->field]['entityFieldType'] !== $Required->type) {
+						//$style->_task_error('type mismatch (' . $Required->type . ')');
+						$errors[] = [$class, 'Required type mismatch (' . $Required->type . '): ' . $Required->field];
+					} else {
+						//$style->_task_ok();
 					}
 				}
 				#endregion
-			}
-			#endregion
 
-			#region check-required-fields
-			$Requireds = RequiredField::all($ENTITY, $ENTITY->getParentClass(), ...$ENTITY->getTraits(), ...$ENTITY->getParentClass()->getTraits());
-			foreach ($Requireds as $Required) {
-				$style->_task('Required field: ' . $Required->field);
-				if (!array_key_exists($Required->field, $fields)) {
-					$style->_task_error('missing');
-					$errors[] = [$class, 'Required field missing: ' . $Required->field];
-				} elseif ($fields[$Required->field]['entityFieldType'] !== $Required->type) {
-					$style->_task_error('type mismatch (' . $Required->type . ')');
-					$errors[] = [$class, 'Required type mismatch (' . $Required->type . '): ' . $Required->field];
-				} else {
-					$style->_task_ok();
+				#region relations
+				foreach ($model->getRelations() as $relation) {
+					if ($relation instanceof BelongsTo) {
+						$cw->addAnnotation("@property-read \\" . $relation->entity . " $" . $relation->target);
+					}
+					if ($relation instanceof HasMany) {
+						$cw->addAnnotation("@property-read \\Application\\Atoms\\EntityFinder\\_" . (new \ReflectionClass($relation->entity))->getShortName() . " $" . $relation->target);
+					}
+					if ($relation instanceof BelongsToMany) {
+						$cw->addAnnotation("@property-read \\" . $relation->entity . "[] $" . $relation->target);
+					}
 				}
-			}
-			#endregion
+				#endregion
 
-			#region relations
-			foreach ($model->getRelations() as $relation) {
-				if ($relation instanceof BelongsTo) {
-					$cw->addAnnotation("@property-read \\" . $relation->entity . " $" . $relation->target);
+				#region virtuals
+				foreach (Virtual::all($ENTITY) as $virtual) {
+					if ($virtual->get && $virtual->set) {
+						$cw->addAnnotation("@property " . $virtual->type . " \$" . $virtual->field);
+					} elseif ($virtual->get) {
+						$cw->addAnnotation("@property-read " . $virtual->type . " \$" . $virtual->field);
+					} elseif ($virtual->set) {
+						$cw->addAnnotation("@property-write " . $virtual->type . " \$" . $virtual->field);
+					}
+					if ($virtual->get) $cw->addCode("abstract protected function get" . ucfirst($virtual->field) . "():" . $virtual->type . ";");
+					if ($virtual->set) $cw->addCode("abstract protected function set" . ucfirst($virtual->field) . "(" . $virtual->type . " \$value):void" . ";");
 				}
-				if ($relation instanceof HasMany) {
-					$cw->addAnnotation("@property-read \\Application\\Atoms\\EntityFinder\\_" . (new \ReflectionClass($relation->entity))->getShortName() . " $" . $relation->target);
-				}
-				if ($relation instanceof BelongsToMany) {
-					$cw->addAnnotation("@property-read \\" . $relation->entity . "[] $" . $relation->target);
-				}
-			}
-			#endregion
+				#endregion
 
-			#region virtuals
-			foreach (Virtual::all($ENTITY) as $virtual) {
-				if ($virtual->get && $virtual->set) {
-					$cw->addAnnotation("@property " . $virtual->type . " \$" . $virtual->field);
-				} elseif ($virtual->get) {
-					$cw->addAnnotation("@property-read " . $virtual->type . " \$" . $virtual->field);
-				} elseif ($virtual->set) {
-					$cw->addAnnotation("@property-write " . $virtual->type . " \$" . $virtual->field);
-				}
-				if ($virtual->get) $cw->addCode("abstract protected function get" . ucfirst($virtual->field) . "():" . $virtual->type . ";");
-				if ($virtual->set) $cw->addCode("abstract protected function set" . ucfirst($virtual->field) . "(" . $virtual->type . " \$value):void" . ";");
-			}
-			#endregion
-
-			#region finder
-			$finderName = $this->getFinderName($class);
-			$cw->addAnnotation("@method static \\" . trim($this->atomsNamespace, '\\') . '\\' . static::ATOM_ENTITY_HELPERS_NS . "\\" . $finderName . " search( Filter \$filter = null )");
-			$helpers[] = [
-				"template"  => "helper-finder.txt",
-				"translate" => array_merge($this->getTranslate($class, $model->getTable()), ["{{finder-name}}" => $finderName]),
-			];
-			#endregion
-
-			#region links
-			if ($model->isLink()) {
-				$link = $model->getLink();
-				$cw->addAnnotation("@method static \\" . trim($this->atomsNamespace, '\\') . '\\' . static::ATOM_ENTITY_HELPERS_NS . "\\_" . $class . "_LINK_LEFT " . $link->left->name . "(\\" . $link->left->class . "|null \$" . $link->left->name . " = null)");
-				$cw->addAnnotation("@method static \\" . trim($this->atomsNamespace, '\\') . '\\' . static::ATOM_ENTITY_HELPERS_NS . "\\_" . $class . "_LINK_RIGHT " . $link->right->name . "(\\" . $link->right->class . "|null \$" . $link->right->name . " = null)");
-				$cw->addAttribute("#[\Atomino\Carbon\Attributes\BelongsTo(\"".$link->left->name."\", \\" . $link->left->class . "::class, \"left\")]");
-				$cw->addAttribute("#[\Atomino\Carbon\Attributes\BelongsTo(\"".$link->right->name."\", \\" . $link->right->class . "::class, \"right\")]");
-				$cw->addAttribute("#[Protect(\"left\")]");
-				$cw->addAttribute("#[Protect(\"right\")]");
-
-				$helpers[] = [
-					"template"  => "helper-link.txt",
-					"translate" => [
-						"{{link-class}}"   => $ENTITY->getName(),
-						"{{right-class}}"  => $link->right->class,
-						"{{right-name}}"   => $link->right->name,
-						"{{right-finder}}" => $this->getFinderName($link->right->name),
-						"{{right-link}}"   => "_" . $class . "_LINK_RIGHT",
-						"{{left-class}}"   => $link->left->class,
-						"{{left-name}}"    => $link->left->name,
-						"{{left-finder}}"  => $this->getFinderName($link->left->name),
-						"{{left-link}}"    => "_" . $class . "_LINK_LEFT",
-
-					],
+				#region finder
+				$finderName = $this->getFinderName($class);
+				$cw->addAnnotation("@method static \\" . trim($this->atomsNamespace, '\\') . '\\' . static::ATOM_ENTITY_HELPERS_NS . "\\" . $finderName . " search( Filter \$filter = null )");
+				$eHelpers[] = [
+					"template"  => "helper-finder.txt",
+					"translate" => array_merge($this->getTranslate($class, $model->getTable()), ["{{finder-name}}" => $finderName]),
 				];
+				#endregion
+
+				#region links
+				if ($model->isLink()) {
+					$link = $model->getLink();
+					$cw->addAnnotation("@method static \\" . trim($this->atomsNamespace, '\\') . '\\' . static::ATOM_ENTITY_HELPERS_NS . "\\_" . $class . "_LINK_LEFT " . $link->left->name . "(\\" . $link->left->class . "|null \$" . $link->left->name . " = null)");
+					$cw->addAnnotation("@method static \\" . trim($this->atomsNamespace, '\\') . '\\' . static::ATOM_ENTITY_HELPERS_NS . "\\_" . $class . "_LINK_RIGHT " . $link->right->name . "(\\" . $link->right->class . "|null \$" . $link->right->name . " = null)");
+					$cw->addAttribute("#[\Atomino\Carbon\Attributes\BelongsTo(\"" . $link->left->name . "\", \\" . $link->left->class . "::class, \"left\")]");
+					$cw->addAttribute("#[\Atomino\Carbon\Attributes\BelongsTo(\"" . $link->right->name . "\", \\" . $link->right->class . "::class, \"right\")]");
+					$cw->addAttribute("#[Protect(\"left\")]");
+					$cw->addAttribute("#[Protect(\"right\")]");
+
+					$eHelpers[] = [
+						"template"  => "helper-link.txt",
+						"translate" => [
+							"{{link-class}}"   => $ENTITY->getName(),
+							"{{right-class}}"  => $link->right->class,
+							"{{right-name}}"   => $link->right->name,
+							"{{right-finder}}" => $this->getFinderName($link->right->name),
+							"{{right-link}}"   => "_" . $class . "_LINK_RIGHT",
+							"{{left-class}}"   => $link->left->class,
+							"{{left-name}}"    => $link->left->name,
+							"{{left-finder}}"  => $this->getFinderName($link->left->name),
+							"{{left-link}}"    => "_" . $class . "_LINK_LEFT",
+
+						],
+					];
+				}
+				#endregion
 			}
-			/*
-			 * /*
-			 * @method {{left-finder}} search({{right-class}} ...${{right-name}})
-			 * /
-			abstract class {{left-link}} extends LinkHandler {}
-
-				/**
-				 * @method {{link-class}}|null add({{left-class}} $content)
-				 * @method void remove({{left-class}}|null ${{left-name}}=null)
-				 * @method void sync({{left-class}} ...${{left-name}})
-				 * @method {{link-class}}|null has({{left-class}} ${{left-name}})
-				 * @method int count()
-				 * @method {{right-finder}} search({{left-class}} ...${{left-name}})
-				 * /
-				abstract class {{right-link}} extends LinkHandler {}
-			 */
-
-
-			#endregion
-
 
 			#region write shadow entity
-			$translate = $this->getTranslate($class, $model->getTable(), $cw);
-
-			$style->_task("{$this->shadowPath}/_{$class}.php");
-			$template = file_get_contents(__DIR__ . '/$resources/shadow.txt');
-			$template = strtr($template, $translate);
-			$outfile = $this->pathResolver->path("{$this->shadowPath}/_{$class}.php");
-
-			if (!file_exists($outfile)) {
-				file_put_contents($outfile, $template);
-				$style->_task_ok('created');
-			} elseif (file_get_contents($outfile) !== $template) {
-				$modified = true;
-				file_put_contents($outfile, $template);
-				$style->_task_ok('modified');
+			if (count($errors)) {
+				foreach ($errors as $error) {
+					$style->_task($error[0]);
+					$style->_task_error($error[1]);
+				}
+				$summary[$entity] = false;
 			} else {
-				$style->_task_ok();
+				$helpers = array_merge($helpers, $eHelpers);
+				$translate = $this->getTranslate($class, $model->getTable(), $cw);
+
+				$template = file_get_contents(__DIR__ . '/$resources/shadow.txt');
+				$template = strtr($template, $translate);
+				$outfile = $this->pathResolver->path("{$this->shadowPath}/_{$class}.php");
+				if (file_get_contents($outfile) !== $template) {
+					$modified = true;
+					$style->_task($class);
+					file_put_contents($outfile, $template);
+					$style->_task_ok('modified');
+				}
+				$summary[$entity] = true;
 			}
 			#endregion
-
 		}
 
-		if (count($errors)) {
-			$style->_section("Errors");
-			foreach ($errors as $error) {
-				$style->_task($error[0]);
-				$style->_task_error($error[1]);
-			}
-		}
-		if ($modified) {
-			$style->newLine();
-			$style->_warn('Rerun generator!');
-			return 1;
-		}
 
 		#region write helper
-		$template = file_get_contents(__DIR__ . '/$resources/helper.txt');
-		$template = strtr($template, $translate);
-		$outfile = $this->pathResolver->path("{$this->helperPath}/@helpers.php");
-		file_put_contents($outfile, $template);
+		if (count($helpers)) {
+			$template = file_get_contents(__DIR__ . '/$resources/helper.txt');
+			$template = strtr($template, $translate);
+			$outfile = $this->pathResolver->path("{$this->helperPath}/@helpers.php");
+			file_put_contents($outfile, $template);
 
-		foreach ($helpers as $helper) {
-			$template = file_get_contents(__DIR__ . '/$resources/' . $helper["template"]);
-			$template = trim(strtr($template, $helper["translate"])) . "\n\n";
-			file_put_contents($outfile, $template, FILE_APPEND);
+			foreach ($helpers as $helper) {
+				$template = file_get_contents(__DIR__ . '/$resources/' . $helper["template"]);
+				$template = trim(strtr($template, $helper["translate"])) . "\n\n";
+				file_put_contents($outfile, $template, FILE_APPEND);
+			}
 		}
 		#endregion
 
-		return 0;
+		if ($modified) {
+			return 1;
+		} else {
+			foreach ($summary as $entity => $success) {
+				$style->_task($entity);
+				if ($success) $style->_task_ok();
+				else $style->_task_error();
+			}
+			$style->writeln("<fg=green;options=bold>done</>");
+			return 0;
+		}
 	}
 
 	private function getFinderName(string $class) { return "_" . $class . "_FINDER"; }
@@ -387,7 +364,7 @@ class Generator {
 		$fields = [];
 
 		foreach ($table->getFields() as $name => $dbField) {
-			$style->_task($name);
+			// $style->_task($name);
 
 			# region getType
 			/** @var \Atomino\Carbon\Field\Field $entityFieldType */
@@ -408,12 +385,12 @@ class Generator {
 			# endregion
 
 			if (is_null($entityFieldType)) {
-				$style->_task_error('unsupported type: ' . $dbField->getTypeString());
+				//$style->_task_error('unsupported type: ' . $dbField->getTypeString());
 				$errors[] = [$table->getName(), 'Unsupported type: ' . $dbField->getTypeString()];
 			} else {
 				$_fieldDescriptor = FieldDescriptor::get(new \ReflectionClass($entityFieldType));
 
-				$style->_task_ok($dbField->getTypeString());
+				//$style->_task_ok($dbField->getTypeString());
 				if ($model->hasField($name)) {
 					if ($model->getField($name)->isProtected()) {
 						$get = $model->getField($name)->getGetter() === null ? false : true;

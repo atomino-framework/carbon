@@ -18,7 +18,7 @@ interface EntityInterface {
 	public function getRecord(): array;
 	public function import(array $data);
 	public function export(): array;
-	public function jsonSerialize();
+	public function jsonSerialize():mixed;
 	static public function search(null|Filter $filter = null): Finder;
 	public static function pick(int|null $id): static|null;
 	/** @return static[] */

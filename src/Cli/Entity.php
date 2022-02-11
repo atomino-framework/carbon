@@ -20,7 +20,9 @@ class Entity extends CliModule {
 	public function entity(CliCommand $command) {
 		$command->define(function (Input $input, Output $output, Style $style) {
 			$generator = new Generator($this->config['namespace'], $this->config['atoms-namespace'], $style, $this->codeFinder, $this->pathResolver);
-			$generator->generate();
+			if($generator->generate() !==0){
+				system('php '.realpath($_SERVER['argv'][0]). " entity");
+			}
 		});
 	}
 

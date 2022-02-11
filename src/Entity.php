@@ -194,9 +194,7 @@ abstract class Entity implements \JsonSerializable, EntityInterface {
 		return $data;
 	}
 
-	public function jsonSerialize() {
-		return $this->export();
-	}
+	public function jsonSerialize(): mixed { return $this->export(); }
 
 	static public function search(null|Filter $filter = null): Finder {
 		return static::model()->getRepository()->search($filter);
