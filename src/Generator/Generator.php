@@ -84,6 +84,9 @@ class Generator {
 
 	public function generate() {
 
+		$this->style->newLine();
+
+
 		$summary = [];
 
 		$style = $this->style;
