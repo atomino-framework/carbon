@@ -37,6 +37,7 @@ class Comparison {
 	const OPERATOR_LT = 'lt';
 	const OPERATOR_LTE = 'lte';
 	const OPERATOR_JSON_CONTAINS = 'json_contains';
+	const OPERATOR_JSON_NOT_CONTAINS = 'json_not_contains';
 
 	static public function field(string $field, $isIn = null) {
 		$comp = new static($field);
@@ -79,6 +80,7 @@ class Comparison {
 			static::OPERATOR_REGEX => "${field} REGEXP '{$this->value}'",
 			static::OPERATOR_BETWEEN => "${field} BETWEEN {$this->quote($this->value[0])} AND {$this->quote($this->value[1])}",
 			static::OPERATOR_JSON_CONTAINS => "JSON_CONTAINS(${field}, {$this->quote($this->value[0])}, '{$this->value[1]}')",
+			static::OPERATOR_JSON_NOT_CONTAINS => "NOT JSON_CONTAINS(${field}, {$this->quote($this->value[0])}, '{$this->value[1]}')",
 			default => ''
 		};
 	}
@@ -87,6 +89,12 @@ class Comparison {
 
 	public function json_contains($value, $path="$"): static {
 		$this->operator = self::OPERATOR_JSON_CONTAINS;
+		$this->value = [json_encode($value), $path];
+		return $this;
+	}
+
+	public function json_not_contains($value, $path = "$"):static{
+		$this->operator = self::OPERATOR_JSON_NOT_CONTAINS;
 		$this->value = [json_encode($value), $path];
 		return $this;
 	}
