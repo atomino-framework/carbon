@@ -82,13 +82,13 @@ class Model {
 	}
 	private function getProtecteds(\ReflectionClass $ENTITY): array {
 		$protecteds = [];
-		$Protects = Protect::all($ENTITY, $ENTITY->getParentClass(), ...$ENTITY->getTraits(), ...$ENTITY->getParentClass()->getTraits());
+		$Protects = Protect::collect($ENTITY, $ENTITY->getParentClass(), ...$ENTITY->getTraits(), ...$ENTITY->getParentClass()->getTraits());
 		foreach ($Protects as $Protect) $protecteds[$Protect->field] = $Protect;
 		return $protecteds;
 	}
 	private function getImmutables(\ReflectionClass $ENTITY): array {
 		$immutables = [];
-		$Immutables = Immutable::all($ENTITY, $ENTITY->getParentClass(), ...$ENTITY->getTraits(), ...$ENTITY->getParentClass()->getTraits());
+		$Immutables = Immutable::collect($ENTITY, $ENTITY->getParentClass(), ...$ENTITY->getTraits(), ...$ENTITY->getParentClass()->getTraits());
 		foreach ($Immutables as $Immutable) $immutables[$Immutable->field] = $Immutable;
 		return $immutables;
 	}
@@ -144,7 +144,7 @@ class Model {
 	private function setValidators(\ReflectionClass $ENTITY) {
 		$this->validators = new ValidatorSet();
 		$this->entityValidators = new EntityValidatorSet();
-		$Validators = Validator::all($ENTITY, $ENTITY->getParentClass());
+		$Validators = Validator::collect($ENTITY, $ENTITY->getParentClass());
 		foreach ($Validators as $Validator) {
 			if ($Validator->validator instanceof EntityContraint) {
 				$this->entityValidators->addValidator($Validator->validator);

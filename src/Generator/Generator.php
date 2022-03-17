@@ -224,7 +224,7 @@ class Generator {
 				#endregion
 
 				#region check-required-fields
-				$Requireds = RequiredField::all($ENTITY, $ENTITY->getParentClass(), ...$ENTITY->getTraits(), ...$ENTITY->getParentClass()->getTraits());
+				$Requireds = RequiredField::collect($ENTITY, $ENTITY->getParentClass(), ...$ENTITY->getTraits(), ...$ENTITY->getParentClass()->getTraits());
 				foreach ($Requireds as $Required) {
 					//$style->_task('Required field: ' . $Required->field);
 					if (!array_key_exists($Required->field, $fields)) {
