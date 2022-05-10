@@ -8,7 +8,8 @@ use Attribute;
 
 #[Attribute(Attribute::TARGET_CLASS|Attribute::IS_REPEATABLE)]
 class HasMany extends Relation{
-	public function fetch(Entity $item):Finder{
+	public function fetch(Entity $item):Finder|null{
+		if($item->id === null) return null;
 		if($item::model()->getField($this->field) instanceof JsonField){
 			return ($this->entity)::search(Filter::where('JSON_CONTAINS(`'.$this->field.'`, $1, "$")', $item->id));
 		}else{

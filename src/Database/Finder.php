@@ -83,7 +83,13 @@ class Finder {
 		return $this;
 	}
 
-	public function field(): mixed { return is_null($record = $this->record()) ? null : reset($record); }
+	public function value(): mixed { return is_null($record = $this->record()) ? null : reset($record); }
+	public function values(string|null $field = null): mixed {
+		$records = $this->records();
+		return array_map(function($record) use ($field){
+			return is_null($field) ? reset($record) : $record[$field];
+		}, $records);
+	}
 	public function integer(): int|null { return is_null($record = $this->record()) ? null : intval(reset($record)); }
 
 	public function record(): ?array {

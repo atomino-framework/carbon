@@ -215,7 +215,7 @@ class Comparison {
 
 	#endregion
 
-	protected function quote(string $string, string|null $mode = null) {
+	protected function quote(string|null $string, string|null $mode = null) {
 		if (is_null($mode)) $mode = $this->quote;
 		return match ($mode) {
 			self::RAW => $string,

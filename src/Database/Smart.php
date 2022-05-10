@@ -76,6 +76,11 @@ class Smart{
 	public function inTransaction(): bool{ return $this->pdo->inTransaction(); }
 	#endregion
 
+	public function tableExists(string $table){
+		$database = $this->connection->query("select database()")->fetchColumn();
+		return (bool) $this->getValue("SELECT Count(*) FROM information_schema.tables WHERE table_schema = '$database' AND table_name = '$table' LIMIT 1;");
+	}
+
 	public function applySQLArguments(string $sql, array $args): string{
 		if (count($args)){
 			foreach ($args as $key => $arg){

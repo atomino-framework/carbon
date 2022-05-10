@@ -245,7 +245,7 @@ class Generator {
 						$cw->addAnnotation("@property-read \\" . $relation->entity . " $" . $relation->target);
 					}
 					if ($relation instanceof HasMany) {
-						$cw->addAnnotation("@property-read \\Application\\Atoms\\EntityFinder\\_" . (new \ReflectionClass($relation->entity))->getShortName() . " $" . $relation->target);
+						$cw->addAnnotation("@property-read \\Application\\Atoms\\EntityHelper\\_" . (new \ReflectionClass($relation->entity))->getShortName() . "_FINDER|null $" . $relation->target);
 					}
 					if ($relation instanceof BelongsToMany) {
 						$cw->addAnnotation("@property-read \\" . $relation->entity . "[] $" . $relation->target);
