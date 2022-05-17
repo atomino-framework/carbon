@@ -6,12 +6,12 @@ use function Atomino\debug;
 
 class MultiTagHandler extends TagHandler {
 
-	public function update(bool $truncate = false): void {
+	public function update(string|null $batch = null, bool $truncate = false): void {
 		$truncate && $this->truncate();
 		$this->connection->query("CALL getTags('$this->source', '$this->field', '$this->table')");
 	}
 
-	public function rename(string $tag, string $to): void {
+	public function rename(string $tag, string|null $to, string|null $batch = null): void {
 		$records = $this->connection->getFinder()->fields("id", $this->field)->table($this->source)->where(Filter::where((new Comparison($this->field))->json_contains($tag)))->records();
 		foreach ($records as $record) {
 			$id = $record['id'];
@@ -24,5 +24,5 @@ class MultiTagHandler extends TagHandler {
 		$this->update(true);
 	}
 
-	public function remove(string $tag): void { $this->rename($tag, ""); }
+	public function remove(string $tag, string|null $batch = null): void { $this->rename($tag, null, $batch); }
 }

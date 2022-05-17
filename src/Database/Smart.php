@@ -52,7 +52,7 @@ class Smart{
 		return $this->pdo->lastInsertId();
 	}
 
-	public function update(string $table, Filter $filter, array $data): int{
+	public function update(string $table, Filter|null $filter, array $data): int{
 		foreach ($data as $key => $value){
 			if ($key[0] === '!'){
 				$key = substr($key, 1);
@@ -61,7 +61,7 @@ class Smart{
 			}
 			$data[$key] = $this->escape($key) . '=' . $value;
 		}
-		return $this->query("UPDATE " . $this->escape($table) . " SET " . implode(", ", $data) . ' WHERE ' . $filter->getSql($this->connection))->rowCount();
+		return $this->query("UPDATE " . $this->escape($table) . " SET " . implode(", ", $data) . (!is_null($filter) ? ' WHERE ' . $filter->getSql($this->connection) : ""))->rowCount();
 	}
 	public function updateById(string $table, int $id, array $data): int{ return $this->update($table, Filter::where('id=$1', $id), $data); }
 
